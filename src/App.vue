@@ -822,17 +822,32 @@ export default {
       });
     }
   },
-  async mounted() {
-    try {
-      const res = await this.apiCall('check_auth');
-      if (res.data.user) {
-        this.currentUser = res.data.user;
-        await this.refreshData();
+  async apiCall(action, payload = null) {
+      try {
+        const options = payload
+          ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+          : { method: 'GET' };
+        const res = await fetch(`api.php?action=${action}`, options);
+        const text = await res.text();
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          console.error(`PHP Error [${action}]:`, text);
+          const cleanMsg = text.replace(/<[^>]*>/g, '').trim();
+          this.showToast(`PHP Error (${action}): ` + cleanMsg.slice(0, 120), false);
+          return null;
+        }
+        if (!json.success) {
+          this.showToast(json.message || 'เกิดข้อผิดพลาด', false);
+          return null;
+        }
+        return json;
+      } catch (err) {
+        this.showToast('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ PHP ได้', false);
+        return null;
       }
-    } catch (e) {
-      // ยังไม่ได้เข้าสู่ระบบ
-    }
-  },
+    },
   methods: {
     showToast(message, success = true) {
       this.toast = { show: true, message, success };
@@ -841,42 +856,52 @@ export default {
       }, 3200);
     },
     async apiCall(action, payload = null) {
-      const options = payload
-        ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
-        : { method: 'GET' };
-      const res = await fetch(`api.php?action=${action}`, options);
-      const json = await res.json();
-      if (!json.success) {
-        this.showToast(json.message || 'เกิดข้อผิดพลาด', false);
-        throw new Error(json.message);
+      try {
+        const options = payload
+          ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+          : { method: 'GET' };
+        const res = await fetch(`api.php?action=${action}`, options);
+        const json = await res.json();
+        if (!json.success) {
+          this.showToast(json.message || 'เกิดข้อผิดพลาด', false);
+          return null;
+        }
+        return json;
+      } catch (err) {
+        this.showToast('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ PHP ได้', false);
+        return null;
       }
-      return json;
     },
     async handleLogin() {
       const res = await this.apiCall('login', this.loginForm);
+      if (!res) return;
       this.currentUser = res.data.user;
       this.showToast(res.message);
       await this.refreshData();
     },
     async quickLogin(username, password) {
       const res = await this.apiCall('login', { username, password });
+      if (!res) return;
       this.currentUser = res.data.user;
       this.showToast(`เข้าสู่ระบบในชื่อ ${this.currentUser.full_name}`);
       await this.refreshData();
     },
     async handleRegister() {
       const res = await this.apiCall('register', this.registerForm);
+      if (!res) return;
       this.currentUser = res.data.user;
       this.showToast(res.message);
       await this.refreshData();
     },
     async handleLogout() {
-      await this.apiCall('logout');
+      const res = await this.apiCall('logout');
+      if (!res) return;
       this.currentUser = null;
       this.showToast('ออกจากระบบเรียบร้อยแล้ว');
     },
     async refreshData() {
       const res = await this.apiCall('get_dashboard_data');
+      if (!res) return;
       this.appData = res.data;
       if (this.activeLeaveTypes.length > 0 && !this.createForm.leave_type_id) {
         this.createForm.leave_type_id = this.activeLeaveTypes[0].id;
@@ -912,6 +937,7 @@ export default {
     },
     async handleCreateLeave() {
       const res = await this.apiCall('create_leave', this.createForm);
+      if (!res) return;
       this.createForm.reason = '';
       this.showToast(res.message);
       await this.refreshData();
@@ -932,6 +958,7 @@ export default {
     },
     async handleUpdateLeave() {
       const res = await this.apiCall('update_leave', this.editModal.form);
+      if (!res) return;
       this.editModal.show = false;
       this.showToast(res.message);
       await this.refreshData();
@@ -939,6 +966,7 @@ export default {
     async deleteLeave(id) {
       if (!confirm('ยืนยันการลบ/ยกเลิกรายการใบลานี้?')) return;
       const res = await this.apiCall('delete_leave', { id });
+      if (!res) return;
       this.showToast(res.message);
       await this.refreshData();
     },
@@ -951,6 +979,7 @@ export default {
         status: this.statusModal.status,
         admin_remark: this.statusModal.remark
       });
+      if (!res) return;
       this.statusModal.show = false;
       this.showToast(res.message);
       await this.refreshData();
@@ -963,23 +992,27 @@ export default {
     },
     async handleSaveLeaveType() {
       const res = await this.apiCall('save_leave_type', this.typeForm);
+      if (!res) return;
       this.resetTypeForm();
       this.showToast(res.message);
       await this.refreshData();
     },
     async toggleLeaveType(id) {
       const res = await this.apiCall('toggle_leave_type', { id });
+      if (!res) return;
       this.showToast(res.message);
       await this.refreshData();
     },
     async deleteLeaveType(id) {
       if (!confirm('ยืนยันการลบประเภทใบลานี้?')) return;
       const res = await this.apiCall('delete_leave_type', { id });
+      if (!res) return;
       this.showToast(res.message);
       await this.refreshData();
     },
     async toggleUserRole(id) {
       const res = await this.apiCall('toggle_user_role', { id });
+      if (!res) return;
       this.showToast(res.message);
       await this.refreshData();
     },

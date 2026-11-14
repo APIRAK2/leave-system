@@ -2,9 +2,10 @@
   "name": "leave-system",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build"
+"scripts": {
+    "serve": "node dev.js",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint"
   },
   "dependencies": {
     "core-js": "^3.8.3",
